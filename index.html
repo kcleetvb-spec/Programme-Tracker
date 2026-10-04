@@ -416,7 +416,7 @@
             gap: 4px;
             width: 100%;
             min-width: 0;
-            overflow: hidden;
+            overflow: visible;
         }
         .table-status-pager {
             display: inline-flex;
@@ -436,7 +436,7 @@
             display: block;
             flex: 1 1 auto;
             min-width: 0;
-            overflow: hidden;
+            overflow: visible;
             transform: scale(0.85);
             transform-origin: right center;
         }
@@ -448,19 +448,21 @@
             margin-left: 0;
             padding-left: 0;
             border-left: none;
+            align-content: center;
         }
         .table-navigation-shortcuts .status-shortcut-item {
             min-width: 0;
-            padding: 2px 3px;
+            padding: 4px 4px;
             gap: 3px;
             font-size: 9px;
             overflow: hidden;
             text-overflow: ellipsis;
+            min-height: 22px;
         }
         .table-navigation-shortcuts .status-shortcut-key {
-            flex: 0 0 16px;
-            width: 16px;
-            height: 16px;
+            flex: 0 0 18px;
+            width: 18px;
+            height: 18px;
         }
         .table-navigation-shortcuts .arrow-icon {
             width: 12px;
@@ -1963,7 +1965,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr style="height: 30px;">
+                        <tr style="height: 36px;">
                             <td class="row-header track-header-cell"></td>
                             <td colspan="3" class="bg-header" style="text-align: left; padding-left: 12px;">Programme No: <span class="programme-detail-value">${appData.programNo || ''}</span></td>
                             <td colspan="3" class="bg-header" style="text-align: left; padding-left: 12px;">Programme Name: <span class="programme-detail-value">${appData.programName || ''}</span></td>
@@ -2120,7 +2122,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr style="height: 30px;">
+                        <tr style="height: 36px;">
                             <td class="row-header track-header-cell"></td>
                             <td colspan="5" class="bg-header" style="text-align: left; padding-left: 12px;">Episode ${epNum}&nbsp;&nbsp;|&nbsp;&nbsp;Programme No: <span class="programme-detail-value">${appData.programNo || ''}</span>&nbsp;&nbsp;|&nbsp;&nbsp;Programme Name: <span class="programme-detail-value">${appData.programName || ''}</span></td>
                             <td colspan="2" class="bg-header table-navigation-cell">${getTableNavigationMarkup(false)}</td>
