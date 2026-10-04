@@ -1,15 +1,14 @@
 # AGENTS.md
 
-## Standing rules (user mandates — apply to every change)
-1. 每次改動完成後，都必須創建一個對應的 Git commit，以便後續追蹤和回滾。
-   Commit after every change, so it can be tracked and rolled back.
-2. 每次改動後，都必須編寫或更新相關測試，並在交付給用戶前，確保所有測試和驗證全部通過。
-   Write or update related tests after every change; all tests and verifications must pass before delivery. (This repo currently has no test suite — rule applies once code/tests exist.)
+## Standing rules (apply to every change)
+1. **Commit after every change.** Create a Git commit after completing each change so it can be tracked and rolled back.
+2. **Update/add tests when they exist.** After each change, write or update related tests. Before delivery, all tests and verifications must pass. (No test suite exists yet; apply this rule once code/tests appear.)
 
 ## Repo facts
-- Template/scaffold repo ("VC project template") holding per-tool AI coding configs — not an application. There are no build, lint, typecheck, or test commands; verification = `git status` clean + the rules above.
-- Git root is this directory (`/Users/kclee/Documents/Project/Coding`). `AiStudio/`, `Cursor/`, `Opencode/`, `Trae/` are per-tool config homes (mostly empty placeholders), not separate repos.
-- Local-only repo: no git remote. Push is not expected.
-- Commit messages follow Conventional Commits (`docs:`, `chore:`, …) — see `git log`.
-- `.gitignore` excludes `.codegraph` (a symlink to ~/.omo/codegraph) and `.omo/` (session artifacts) — never commit them. `.DS_Store` files are untracked noise; do not commit.
-- This file was previously named `Agents.md`; keep the canonical name `AGENTS.md` (renamed so case-sensitive systems pick it up).
+- **Template/scaffold only.** Holds per-tool AI coding configs (`AiStudio/`, `Cursor/`, `Opencode/`, `Trae/`) — not an application.
+- **No runnable project tooling.** No build, lint, typecheck, test, or codegen commands defined here. Verification = `git status` clean (plus tests once they exist).
+- **Single git root.** Git root is `/Users/kclee/Documents/Project/Coding`. The per-tool directories are config homes (not separate repos).
+- **Local-only.** No git remote; pushing is not expected.
+- **Commit style.** Conventional Commits (`docs:`, `chore:`, etc.) — follow existing history in `git log`.
+- **Never commit excluded artifacts.** `.gitignore` excludes `.codegraph` (symlink to `~/.omo/codegraph`) and `.omo/` (session artifacts). Do not commit `.DS_Store`.
+- **Canonical filename.** Keep this file as `AGENTS.md` (case-sensitive systems expect this; it was renamed from `Agents.md`).
