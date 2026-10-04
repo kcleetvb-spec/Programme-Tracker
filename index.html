@@ -1,0 +1,2296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programme Version Tracker (Multi-Version Edition)</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2313233e'/%3E%3Cpath d='M20 16h16l8 8v24a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4z' fill='none' stroke='%2360a5fa' stroke-width='4'/%3E%3Cpath d='M36 16v8h8' fill='none' stroke='%2360a5fa' stroke-width='4'/%3E%3Cpath d='M22 38h20M22 44h14' stroke='%237db4ff' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+    <style>
+        :root {
+            --excel-header: #13233e;
+            --row-light: #333e4f;
+            --row-dark: #0f1c30;
+            --border-color: #2c3e5f;
+            --border-dotted: #33466b;
+            --safe-color: #22c55e;
+            --warn-color: #f0473f;
+            
+            --status-inuse: #f472b6;
+            --status-finished: #2563eb;
+            --status-waiting: #fbbf24;
+            --status-last-user: #60a5fa;
+            --cond-inuse: #f472b6;
+            --cond-finished: #2563eb;
+            --cond-waiting: #fbbf24;
+            
+            --bottom-bar: #0f1c30;
+            --btn-green: #15803d;
+            --btn-green-hover: #166534;
+            --btn-blue: #2563eb;
+            --btn-blue-hover: #1d4ed8;
+            --btn-red: #dc2626;
+            --btn-red-hover: #b91c1c;
+            --btn-gray: #1b2a45;
+            --btn-gray-hover: #24365a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', 'Calibri', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, #11203a 0%, #0c1728 100%);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            color: #dbe4f0;
+        }
+
+        .top-bar {
+            background: linear-gradient(180deg, #13233e 0%, #0e1a2d 100%);
+            border-bottom: 1px solid #22334f;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-weight: bold;
+            color: #eef2f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+
+        .sync-badge {
+            font-size: 12px;
+            color: #9fb3d1;
+            font-weight: 500;
+            background-color: #16233c;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #2c3e5f;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .btn-success { background-color: var(--btn-green); color: white; }
+        .btn-success:hover { background-color: var(--btn-green-hover); }
+        .btn-primary { background-color: var(--btn-blue); color: white; }
+        .btn-primary:hover { background-color: var(--btn-blue-hover); }
+        .btn-danger { background-color: var(--btn-red); color: white; }
+        .btn-danger:hover { background-color: var(--btn-red-hover); }
+        .btn-secondary { background-color: var(--btn-gray); color: #c9d6ea; border: 1px solid #31456b; }
+        .btn-secondary:hover { background-color: var(--btn-gray-hover); }
+
+        .btn-glass {
+            background: rgba(59, 130, 246, 0.16);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(96, 165, 250, 0.35);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            color: #dbe7fb;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-glass:hover {
+            background: rgba(59, 130, 246, 0.28);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            transform: translateY(-1px);
+        }
+        .btn-glass:active {
+            transform: translateY(0);
+            background: rgba(59, 130, 246, 0.12);
+        }
+
+        .grid-container {
+            flex: 1;
+            overflow: auto;
+            background-color: #0b1422;
+            padding: 6px;
+        }
+
+        .excel-table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            background-color: #101e33;
+            color: #ffffff;
+        }
+        
+        .excel-table th, .excel-table td {
+            border: 1px solid var(--border-color);
+            text-align: center;
+            vertical-align: middle;
+            height: 26px;
+            font-size: 14px;
+            position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .excel-table tbody tr td { border-bottom: 1px dotted var(--border-dotted); }
+        .excel-table tbody tr:last-child td { border-bottom: 1px solid var(--border-color); }
+        .excel-table tbody tr td:first-child { border-right: 2px solid var(--border-color); font-weight: bold; }
+
+        .bg-header { background-color: var(--excel-header); font-weight: bold; }
+        .row-light { background-color: var(--row-light); }
+        .row-dark { background-color: var(--row-dark); }
+        .track-themed .bg-header, .track-themed .track-header-cell { background-color: var(--track-header-color); color: var(--track-font-color); }
+        .track-themed .row-light { background-color: var(--track-row-light-color); color: var(--track-font-color); }
+        .track-themed .row-dark { background-color: var(--track-row-dark-color); color: var(--track-font-color); }
+        /* 統一深色主題：鎖定表格配色與白色文字，不受舊存檔外觀設定影響 */
+        .track-themed {
+            --track-header-color: #13233e !important;
+            --track-row-dark-color: #0f1c30 !important;
+            --track-row-light-color: #333e4f !important;
+            --track-font-color: #ffffff !important;
+        }
+
+        .col-header { background-color: #13233e; color: #ffffff; font-weight: normal; font-size: 13px; text-align: center; border: 1px solid #2c3e5f !important; }
+        .row-header { background-color: #13233e; color: #ffffff; font-weight: normal; font-size: 13px; text-align: center; border: 1px solid #2c3e5f !important; width: 17px; }
+
+        .workspace-status-input {
+            background-color: #132138;
+            border: 1px solid #2c3e5f;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            color: #b7c6de;
+            font-weight: 500;
+            width: 60px;
+            cursor: text;
+            user-select: text;
+        }
+        .workspace-status-input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 1px;
+            background-color: #fff;
+            color: #1f2937;
+        }
+        td[contenteditable="true"] { cursor: cell; user-select: text; }
+        td[contenteditable="true"]:hover {
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
+        }
+        td[contenteditable="true"]:focus {
+            outline: 2px solid #000;
+            outline-offset: -2px;
+            background-color: #fff !important;
+            color: #1f2937 !important;
+            z-index: 10;
+        }
+
+        select.cell-dropdown {
+            width: 100%; height: 100%; border: none; background: transparent; 
+            text-align: center; font-size: inherit; font-family: inherit;
+            cursor: pointer; appearance: none; -webkit-appearance: none;
+            color: inherit;
+        }
+        select.cell-dropdown option {
+            background-color: #ffffff !important;
+            color: #1f2937 !important;
+        }
+        select.cell-dropdown:focus {
+            outline: 2px solid #000; outline-offset: -2px; background-color: #fff !important; color: #1f2937 !important;
+        }
+
+        input.cell-date {
+            width: 100%; height: 100%; border: none; background: transparent; 
+            text-align: center; font-size: inherit; font-family: inherit; color: inherit;
+            cursor: pointer; outline: none;
+        }
+        input.cell-date:focus {
+            outline: 2px solid #000; outline-offset: -2px; background-color: #fff !important; color: #1f2937 !important;
+            z-index: 10; position: relative;
+        }
+        input.cell-date::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.7;
+            cursor: pointer;
+        }
+
+        .tabs-bar {
+            background-color: var(--bottom-bar);
+            border-top: 1px solid #22334f;
+            display: flex; align-items: flex-end; padding-left: 10px; height: 35px; flex-shrink: 0;
+            gap: 10px;
+        }
+        .tab {
+            padding: 4px 14px; background-color: #16233c; border: 1px solid #2c3e5f; border-bottom: none;
+            border-radius: 3px 3px 0 0; margin-right: 2px; cursor: pointer; font-size: 13px;
+            display: flex; align-items: center; gap: 5px; color: #aebfd8; white-space: nowrap;
+        }
+        .tab.active { background-color: #2563eb; font-weight: bold; color: #ffffff; border: 1px solid #2563eb; border-bottom: 2px solid #2563eb; margin-bottom: -1px; box-shadow: 0 -2px 6px rgba(37, 99, 235, 0.35); }
+
+        .track-filter-select {
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            border: 1px solid #31456b;
+            background-color: #16233c;
+            color: #dbe4f0;
+            cursor: pointer;
+            margin-bottom: 3px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(3, 8, 18, 0.72);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .modal-box {
+            background-color: #132138;
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+            width: 580px;
+            max-width: 95vw;
+            border: 1px solid #2c3e5f;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #eef2f9;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #b7c6de;
+            margin-bottom: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #2c3e5f;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #0f1c30;
+            color: #e6edf7;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .flex-end-gap {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .tracks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .tracks-table th, .tracks-table td {
+            border: 1px solid #2c3e5f;
+            padding: 6px 8px;
+            text-align: center;
+            color: #dbe4f0;
+        }
+        .tracks-table th {
+            background-color: #13233e;
+            color: #c3d2e8;
+        }
+        .track-appearance-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            white-space: nowrap;
+            font-size: 11px;
+        }
+        .track-appearance-control input[type="color"] {
+            width: 34px;
+            height: 24px;
+            padding: 1px;
+            cursor: pointer;
+        }
+        .track-appearance-control select {
+            width: 68px;
+            padding: 3px;
+            font-size: 11px;
+        }
+
+        .icon {
+            display: inline-block;
+            width: 1em; height: 1em;
+            stroke-width: 0; stroke: currentColor; fill: currentColor;
+            vertical-align: middle;
+        }
+
+        /* Status-page row focus: a single red rectangular frame follows the mouse row. */
+        .status-data-row:hover > td {
+            box-shadow: inset 0 2px 0 #f87171, inset 0 -2px 0 #f87171;
+            position: relative;
+            z-index: 2;
+        }
+        .status-data-row:hover > td:first-child {
+            box-shadow: inset 2px 0 0 #f87171, inset 0 2px 0 #f87171, inset 0 -2px 0 #f87171;
+        }
+        .status-data-row:hover > td:last-child {
+            box-shadow: inset -2px 0 0 #f87171, inset 0 2px 0 #f87171, inset 0 -2px 0 #f87171;
+        }
+        .status-pager-dock,
+        .shortcut-dock {
+            display: none !important;
+        }
+        .table-navigation-cell {
+            padding: 0 5px !important;
+            overflow: visible !important;
+            white-space: nowrap !important;
+        }
+        .table-navigation-controls {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .table-status-pager {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+            font-size: 11px;
+        }
+        .table-status-pager button {
+            min-width: 24px;
+            min-height: 22px;
+            padding: 1px 5px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .table-navigation-shortcuts {
+            display: block;
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            transform: scale(0.85);
+            transform-origin: right center;
+        }
+        .table-navigation-shortcuts .status-shortcuts {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2px;
+            width: 100%;
+            margin-left: 0;
+            padding-left: 0;
+            border-left: none;
+        }
+        .table-navigation-shortcuts .status-shortcut-item {
+            min-width: 0;
+            padding: 2px 3px;
+            gap: 3px;
+            font-size: 9px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .table-navigation-shortcuts .status-shortcut-key {
+            flex: 0 0 16px;
+            width: 16px;
+            height: 16px;
+        }
+        .table-navigation-shortcuts .arrow-icon {
+            width: 12px;
+            height: 12px;
+        }
+        .status-shortcuts {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            padding-left: 10px;
+            border-left: 1px solid #2c3e5f;
+            white-space: nowrap;
+        }
+        .status-shortcut-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+        }
+        .status-shortcut-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 19px;
+            height: 19px;
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 3px;
+            background: #1d4ed8;
+            color: #ffffff;
+            line-height: 1;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        }
+        .arrow-icon {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .programme-detail-value {
+            font-weight: inherit;
+            color: inherit;
+            margin-left: 4px;
+        }
+        .finished-stamp {
+            font-size: 12px;
+            font-style: italic;
+            font-weight: 400;
+        }
+        .release-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background-color: rgba(59, 130, 246, 0.18);
+            color: #7db4ff;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .workspace-status-suffix {
+            color: #7d8fab;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 0;
+            white-space: nowrap;
+            user-select: text;
+        }
+        /* Dark scrollbars */
+        .grid-container::-webkit-scrollbar { width: 10px; height: 10px; }
+        .grid-container::-webkit-scrollbar-track { background: #0b1422; }
+        .grid-container::-webkit-scrollbar-thumb { background: #2c3e5f; border-radius: 5px; }
+        .grid-container::-webkit-scrollbar-thumb:hover { background: #3a4f7a; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0c1728; }
+        ::-webkit-scrollbar-thumb { background: #2c3e5f; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand-title">
+            <svg class="icon" viewBox="0 0 24 24" style="font-size: 20px;"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            <span>Programme Version Tracker</span>
+            <span class="release-badge" title="Frontend release version">v.29.4.2610</span>
+
+            <span id="saveStatusIndicator" class="sync-badge" title="目前保存狀態">
+                ● 正在連接工作資料…
+            </span>
+            <span id="workspaceSuffix" class="workspace-status-suffix"></span>
+        </div>
+        <div class="btn-group">
+            <button onclick="saveData(true)" class="btn btn-success" title="Save to current data.json">
+                💾 Save
+            </button>
+
+            <button onclick="openBackupModal()" class="btn btn-secondary" title="查看及還原 data.json 循環備份">
+                🗂️ Restore Backup
+            </button>
+
+            <button onclick="openProgrammeDetailModal(event)" class="btn btn-secondary" title="Click: Programme settings · Alt+Click: Advanced appearance settings">
+                ⚙️ Programme Detail
+            </button>
+            <button id="exitBtn" class="btn btn-danger" title="Save current data and exit">
+                ⏻ Save and Exit
+            </button>
+        </div>
+    </div>
+
+    <div class="grid-container" id="mainGrid"></div>
+    <div class="tabs-bar" id="tabsBar">
+        <div style="display: flex; align-items: center; margin-bottom: 3px;">
+            <select id="bottomTrackFilter" class="track-filter-select" onchange="changeTrackFilter(this.value)">
+            </select>
+        </div>
+        <div id="tabsContainer" style="display: flex; align-items: flex-end; overflow-x: auto;"></div>
+    </div>
+
+    <div id="detailAccessModal" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 400px;">
+            <div class="modal-title">🔐 Programme Detail</div>
+            <p style="font-size: 13px; color: #93a5c4; margin-top: -6px;">Please enter the access password to continue.</p>
+            <div class="form-group">
+                <label class="form-label" for="detailAccessPassword">Password:</label>
+                <input type="password" id="detailAccessPassword" placeholder="Enter password" class="form-input" onkeydown="if(event.key === 'Enter') unlockProgrammeDetail()">
+            </div>
+            <div class="flex-end-gap">
+                <button onclick="closeDetailAccessModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="unlockProgrammeDetail()" class="btn btn-primary">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="programmeDetailModal" class="modal-overlay hidden">
+        <div id="programmeDetailBox" class="modal-box">
+            <div class="modal-title">
+                ⚙️ Programme & Multi-Version Settings
+            </div>
+            <div class="grid-2col">
+                <div class="form-group">
+                    <label class="form-label">Programme No:</label>
+                    <input type="text" id="detailProgramNo" placeholder="e.g. 80000000" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Programme Name:</label>
+                    <input type="text" id="detailProgramName" placeholder="e.g. Fire" class="form-input" oninput="handleProgramNameInput(this.value)">
+                </div>
+            </div>
+
+            <div style="margin-top: 10px; border-top: 1px solid #2c3e5f; padding-top: 12px;">
+                <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 8px;">
+                    <button onclick="addTrackRow()" class="btn btn-primary" style="font-size: 11px; padding: 3px 8px;">+ New Version</button>
+                </div>
+
+                <table class="tracks-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Version</th>
+                            <th style="width: 110px;">Episode Start</th>
+                            <th style="width: 110px;">Episode End</th>
+                            <th class="appearance-header hidden" style="width: 115px;">Row 1–2</th>
+                            <th class="appearance-header hidden" style="width: 135px;">Data Rows</th>
+                            <th class="appearance-header hidden" style="width: 100px;">Font</th>
+                            <th style="width: 60px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracksTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="advancedAppearanceHelp" class="hidden" style="margin-top: 12px; padding: 9px 10px; border: 1px solid rgba(59, 130, 246, 0.35); background: #152643; border-radius: 5px; font-size: 12px; color: #a9c7f5;">
+                Advanced appearance settings apply independently to every Standard Track and Custom Track page. Data Rows uses the selected colour as the deeper alternate row, with a lighter shade generated automatically for the other rows.
+            </div>
+
+            <div class="flex-end-gap">
+                <button onclick="closeProgrammeDetailModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveProgrammeDetail()" class="btn btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="backupModal" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 720px;">
+            <div class="modal-title">🗂️ Data.json Backups</div>
+            <p style="font-size: 13px; color: #93a5c4; margin-top: -6px;">還原前，系統會先建立一份「還原前」循環備份。系統最多保留 30 份，刪除最舊檔案時不會重用備份號碼。請只在確認需要回復時還原。</p>
+            <div id="backupList" style="max-height: 380px; overflow-y: auto; border: 1px solid #2c3e5f; border-radius: 4px; padding: 8px; font-size: 13px;"></div>
+            <div class="flex-end-gap">
+                <button onclick="refreshBackups()" class="btn btn-secondary">↻ Refresh</button>
+                <button onclick="closeBackupModal()" class="btn btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="msgModal" class="modal-overlay hidden">
+        <div class="modal-box" style="text-align: center; width: 380px;">
+            <div style="color: #dc2626; font-size: 40px; margin-bottom: 8px;">⚠️</div>
+            <div id="msgContent" style="margin-bottom: 20px; font-weight: bold; font-size: 15px; color: #e6edf7; line-height: 1.5;"></div>
+            <button onclick="closeMsg()" class="btn btn-danger" style="width: 100%; justify-content: center; padding: 8px;">OK</button>
+        </div>
+    </div>
+
+    <div id="infoModal" class="modal-overlay hidden">
+        <div class="modal-box" style="text-align: center; width: 380px;">
+            <div style="color: #16a34a; font-size: 40px; margin-bottom: 8px;">✅</div>
+            <div id="infoContent" style="margin-bottom: 20px; font-weight: bold; font-size: 14px; color: #e6edf7; line-height: 1.5;"></div>
+            <button onclick="closeInfo()" class="btn btn-success" style="width: 100%; justify-content: center; padding: 8px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const defaultData = {
+            "id": "prog_default_tracker_v3",
+            "programNo": "",
+            "programName": "",
+            "versionTracks": [
+                {
+                    "id": "track_std",
+                    "name": "",
+                    "startEpisode": 1,
+                    "endEpisode": 25
+                }
+            ],
+            "schemaVersion": 6,
+            "revision": 0,
+            "lastModified": 0,
+            "headers": {
+                "b": "Digital File Number",
+                "c": "Staff no",
+                "d": "Update",
+                "e": "Status"
+            },
+            "episodes": {}
+        };
+
+        let appData = {};
+        let activeTab = 'Status';
+        let selectedTrackFilter = '';
+        let statusPage = 1;
+        const STATUS_PAGE_SIZE = 25; 
+        let tabOffset = 0;
+        let saveQueue = Promise.resolve();
+        let viewStateSaveTimer = null;
+        const VIEW_STATE_STORAGE_PREFIX = 'programme_tracker_view_state_';
+
+        function getViewStateStorageKey() {
+            return VIEW_STATE_STORAGE_PREFIX + (appData.id || 'current_programme');
+        }
+
+        function saveViewState(schedulePersist = true) {
+            if (!appData || !appData.id) return;
+            const state = {
+                activeTab: String(activeTab),
+                selectedTrackFilter: String(selectedTrackFilter || ''),
+                statusPage: Math.max(1, Number.parseInt(statusPage, 10) || 1),
+                tabOffset: Math.max(0, Number.parseInt(tabOffset, 10) || 0)
+            };
+            appData.lastViewState = state;
+            try {
+                localStorage.setItem(getViewStateStorageKey(), JSON.stringify(state));
+            } catch (error) {
+                console.warn('Unable to save last opened tab:', error);
+            }
+            if (viewStateSaveTimer) {
+                clearTimeout(viewStateSaveTimer);
+                viewStateSaveTimer = null;
+            }
+            if (schedulePersist) {
+                viewStateSaveTimer = setTimeout(() => {
+                    viewStateSaveTimer = null;
+                    saveData(false);
+                }, 300);
+            }
+        }
+
+        function restoreViewState() {
+            let savedState = appData && appData.lastViewState && typeof appData.lastViewState === 'object'
+                ? appData.lastViewState
+                : null;
+            if (!savedState) {
+                try {
+                    const rawState = localStorage.getItem(getViewStateStorageKey());
+                    if (rawState) savedState = JSON.parse(rawState);
+                } catch (error) {
+                    console.warn('Unable to restore last opened tab:', error);
+                }
+            }
+            if (savedState && typeof savedState === 'object') {
+                if (appData.versionTracks.some(track => track.id === savedState.selectedTrackFilter)) {
+                    selectedTrackFilter = savedState.selectedTrackFilter;
+                }
+                const validEpisodes = new Set(getEpisodeList(selectedTrackFilter).map(String));
+                activeTab = savedState.activeTab === 'Status' || validEpisodes.has(String(savedState.activeTab))
+                    ? String(savedState.activeTab)
+                    : 'Status';
+                statusPage = Math.max(1, Number.parseInt(savedState.statusPage, 10) || 1);
+                tabOffset = Math.max(0, Number.parseInt(savedState.tabOffset, 10) || 0);
+                return true;
+            }
+            return false;
+        }
+
+        function commitActiveCell() {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+        }
+
+        function getTodayDMY() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = String(now.getFullYear()).slice(-2);
+            return `${d}/${m}/${y}`;
+        }
+
+        function ensureTrackDataStructure() {
+            if (!appData.versionTracks || !Array.isArray(appData.versionTracks) || appData.versionTracks.length === 0) {
+                let start = parseInt(appData.startEpisode, 10) || 1;
+                let end = parseInt(appData.endEpisode, 10) || 25;
+                let trackName = appData.programName ? appData.programName.trim() : "";
+                appData.versionTracks = [
+                    { "id": "track_std", "name": trackName, "startEpisode": start, "endEpisode": end }
+                ];
+            }
+            appData.versionTracks.forEach(track => ensureTrackAppearance(track));
+            if (!selectedTrackFilter || !appData.versionTracks.some(t => t.id === selectedTrackFilter)) {
+                selectedTrackFilter = appData.versionTracks[0].id;
+            }
+        }
+
+        function defaultTrackAppearance() {
+            return { headerColor: '#13233e', dataColor: '#0f1c30', fontColor: '#ffffff' };
+        }
+
+        function normaliseHexColor(value, fallback) {
+            const candidate = String(value || '').trim();
+            return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : fallback;
+        }
+
+        function ensureTrackAppearance(track) {
+            if (!track || typeof track !== 'object') return defaultTrackAppearance();
+            const defaults = defaultTrackAppearance();
+            const appearance = track.appearance && typeof track.appearance === 'object' ? track.appearance : {};
+            track.appearance = {
+                headerColor: normaliseHexColor(appearance.headerColor, defaults.headerColor),
+                dataColor: normaliseHexColor(appearance.dataColor, defaults.dataColor),
+                fontColor: appearance.fontColor === '#ffffff' ? '#ffffff' : '#000000'
+            };
+            return track.appearance;
+        }
+
+        function mixHexWithWhite(hex, whiteRatio) {
+            const value = normaliseHexColor(hex, defaultTrackAppearance().dataColor).slice(1);
+            const ratio = Math.max(0, Math.min(1, Number(whiteRatio) || 0));
+            const channels = [0, 2, 4].map(offset => parseInt(value.slice(offset, offset + 2), 16));
+            const mixed = channels.map(channel => Math.round(channel + (255 - channel) * ratio));
+            return '#' + mixed.map(channel => channel.toString(16).padStart(2, '0')).join('');
+        }
+
+        function getTrackTheme(trackId = selectedTrackFilter) {
+            ensureTrackDataStructure();
+            const track = (appData.versionTracks || []).find(item => item.id === trackId) || appData.versionTracks[0];
+            const appearance = ensureTrackAppearance(track);
+            const rowLightColor = mixHexWithWhite(appearance.dataColor, 0.15);
+            return {
+                headerColor: appearance.headerColor,
+                rowDarkColor: appearance.dataColor,
+                rowLightColor,
+                headerStyle: `background-color: ${appearance.headerColor}; color: ${appearance.fontColor};`,
+                rowDarkStyle: `background-color: ${appearance.dataColor}; color: ${appearance.fontColor};`,
+                rowLightStyle: `background-color: ${rowLightColor}; color: ${appearance.fontColor};`,
+                fontColor: appearance.fontColor
+            };
+        }
+
+        function getThemeRowStyle(rowClass, theme) {
+            return rowClass === 'row-dark' ? theme.rowDarkStyle : theme.rowLightStyle;
+        }
+
+        function getTrackTableStyle(theme) {
+            return `--track-header-color: ${theme.headerColor}; --track-row-dark-color: ${theme.rowDarkColor}; --track-row-light-color: ${theme.rowLightColor}; --track-font-color: ${theme.fontColor};`;
+        }
+
+        function getEpisodeList(filterTrackId = selectedTrackFilter) {
+            ensureTrackDataStructure();
+            let episodeList = [];
+            
+            appData.versionTracks.forEach(track => {
+                if (filterTrackId === track.id) {
+                    let start = parseInt(track.startEpisode, 10) || 1;
+                    let end = parseInt(track.endEpisode, 10) || start;
+                    if (end < start) end = start;
+                    for (let i = start; i <= end; i++) {
+                        if (!episodeList.includes(i)) {
+                            episodeList.push(i);
+                        }
+                    }
+                }
+            });
+
+            return episodeList.sort((a, b) => a - b);
+        }
+
+        function getTotalStatusPages() {
+            const total = getEpisodeList().length;
+            return Math.ceil(total / STATUS_PAGE_SIZE) || 1;
+        }
+
+        function isStandardVersion(trackId) {
+            let track = (appData.versionTracks || []).find(t => t.id === trackId);
+            if (!track) return true;
+            return (parseInt(track.startEpisode, 10) || 1) < 1000000;
+        }
+
+        function autoJumpToLatestDataPage() {
+            const epList = getEpisodeList();
+            let lastDataIndex = -1;
+
+            epList.forEach((epNum, idx) => {
+                const records = appData.episodes[epNum] || [];
+                const hasData = records.some(r => (r.fileNum || '').trim() !== '');
+                if (hasData) {
+                    lastDataIndex = idx;
+                }
+            });
+
+            if (lastDataIndex !== -1) {
+                statusPage = Math.floor(lastDataIndex / STATUS_PAGE_SIZE) + 1;
+            } else {
+                statusPage = getTotalStatusPages();
+            }
+        }
+
+        function getApiUrl(path) {
+            if (!window.location.origin || window.location.origin === 'null' || window.location.protocol === 'file:' || window.location.href.startsWith('blob:')) {
+                return null;
+            }
+            try {
+                return new URL(path, window.location.origin).href;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        let workspaceStatusTimer = null;
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+        }
+
+        function formatTimestamp(value) {
+            const timestamp = Number(value || 0);
+            return timestamp > 0 ? new Date(timestamp).toLocaleString() : '—';
+        }
+
+        function setSaveStatus(message, tone = '#9fb3d1') {
+            const indicator = document.getElementById('saveStatusIndicator');
+            if (!indicator) return;
+            indicator.textContent = message;
+            indicator.style.color = tone;
+        }
+
+        function saveWorkspaceStatus(value) {
+            localStorage.setItem('workspaceStatusNote', value || '');
+        }
+
+        function loadWorkspaceStatus() {
+            const saved = localStorage.getItem('workspaceStatusNote');
+            if (saved !== null) {
+                const el = document.getElementById('workspaceStatus');
+                if (el) el.value = saved;
+            }
+        }
+
+        async function refreshWorkspaceStatus() {
+            const statusUrl = getApiUrl('/api/status');
+            if (!statusUrl) return;
+            try {
+                const response = await fetch(statusUrl);
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Status unavailable');
+
+                if (appData && Number.isInteger(result.dataRevision) && result.dataRevision === appData.revision) {
+                    setSaveStatus(`● 已保存 ${formatTimestamp(result.lastModified)}`, '#34d399');
+                }
+                const suffixEl = document.getElementById('workspaceSuffix');
+                if (suffixEl) {
+                    const backupTime = result.nextBackupAt ? formatTimestamp(result.nextBackupAt) : '—';
+                    // Keep the backup timestamp text compact; no redundant trailing gap.
+                    suffixEl.textContent = `Next backup: ${backupTime}| Designed By kc13793`;
+                }
+            } catch (error) {
+                setSaveStatus('● 無法取得 data.json 狀態', '#f87171');
+                const suffixEl = document.getElementById('workspaceSuffix');
+                if (suffixEl) suffixEl.textContent = '';
+            }
+        }
+
+        function startWorkspaceStatusRefresh() {
+            refreshWorkspaceStatus();
+            if (workspaceStatusTimer) clearInterval(workspaceStatusTimer);
+            workspaceStatusTimer = setInterval(refreshWorkspaceStatus, 15000);
+        }
+
+        function openBackupModal() {
+            document.getElementById('backupModal').classList.remove('hidden');
+            refreshBackups();
+        }
+
+        function closeBackupModal() {
+            document.getElementById('backupModal').classList.add('hidden');
+        }
+
+        async function refreshBackups() {
+            const container = document.getElementById('backupList');
+            const backupsUrl = getApiUrl('/api/backups');
+            if (!backupsUrl) return;
+            container.textContent = 'Loading backups…';
+            try {
+                const response = await fetch(backupsUrl);
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Unable to load backups');
+                if (!result.backups.length) {
+                    container.innerHTML = '<div style="padding: 12px; color: #93a5c4;">No data.json backup has been created yet.</div>';
+                    return;
+                }
+                container.innerHTML = result.backups.map(item => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #2c3e5f; gap:8px;">
+                        <span><b>${escapeHtml(item.file)}</b> &nbsp; ${escapeHtml(formatTimestamp(item.modifiedAt))} &nbsp; ${(item.size / 1024).toFixed(1)} KB</span>
+                        <button onclick="restoreBackup(${Number(item.slot)})" class="btn btn-danger" style="font-size:11px; padding:4px 8px;">Restore</button>
+                    </div>`).join('');
+            } catch (error) {
+                container.textContent = `Unable to load backups: ${error.message}`;
+            }
+        }
+
+        async function restoreBackup(slot) {
+            if (!window.confirm(`Restore backup_${String(slot).padStart(2, '0')}.json?\n\nThe current data.json will first be saved into a new backup slot.`)) return;
+            const restoreUrl = getApiUrl(`/api/backups/${slot}/restore`);
+            if (!restoreUrl) return;
+            try {
+                const response = await fetch(restoreUrl, { method: 'POST' });
+                const result = await response.json();
+                if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Restore failed');
+                appData = result.data;
+                ensureTrackDataStructure();
+                appData.versionTracks.forEach(track => {
+                    getEpisodeList(track.id).forEach(ep => {
+                        if (!appData.episodes[ep]) appData.episodes[ep] = [];
+                        while (appData.episodes[ep].length < 16) appData.episodes[ep].push({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 });
+                        recalculateVersions(ep);
+                    });
+                });
+                activeTab = 'Status';
+                autoJumpToLatestDataPage();
+                renderTabs();
+                renderView();
+                closeBackupModal();
+                await refreshWorkspaceStatus();
+                showInfo(`Restored backup_${String(slot).padStart(2, '0')}.json successfully.`);
+            } catch (error) {
+                showMsg(`Restore failed: ${escapeHtml(error.message)}`);
+            }
+        }
+
+        function createProgrammeId() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return `prog_${window.crypto.randomUUID()}`;
+            }
+            return `prog_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        }
+
+        async function init() {
+            let loadedFromApi = false;
+            const apiUrl = getApiUrl('/api/load');
+
+            if (apiUrl) {
+                try {
+                    const response = await fetch(apiUrl);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.status === 'success' && result.data) {
+                            appData = result.data;
+                            loadedFromApi = true;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Backend API not reachable, falling back to local data:", err);
+                }
+            }
+
+            if (!loadedFromApi) {
+                const savedLocal = localStorage.getItem('programme_tracker_data');
+                if (savedLocal) {
+                    try {
+                        appData = JSON.parse(savedLocal);
+                    } catch(e) {
+                        appData = JSON.parse(JSON.stringify(defaultData));
+                    }
+                } else {
+                    appData = JSON.parse(JSON.stringify(defaultData));
+                }
+            }
+
+            if (appData.programNo === undefined) appData.programNo = "";
+            if (appData.programName === undefined) appData.programName = "";
+            if (!appData.id || appData.id === defaultData.id) appData.id = createProgrammeId();
+            if (!Number.isInteger(appData.revision) || appData.revision < 0) appData.revision = 0;
+            if (!Number.isInteger(appData.schemaVersion) || appData.schemaVersion < 6) appData.schemaVersion = 6;
+
+            ensureTrackDataStructure();
+            if (!appData.episodes) appData.episodes = {};
+
+            appData.versionTracks.forEach(t => {
+                let epList = getEpisodeList(t.id);
+                epList.forEach(i => {
+                    if (!appData.episodes[i]) appData.episodes[i] = [];
+                    while (appData.episodes[i].length < 16) {
+                        appData.episodes[i].push({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 });
+                    }
+                    recalculateVersions(i);
+                });
+            });
+
+            if (!restoreViewState()) {
+                activeTab = 'Status';
+                autoJumpToLatestDataPage();
+            }
+
+            renderTabs();
+            renderView();
+            setSaveStatus(`● 已載入 data.json r${appData.revision || 0}`, '#34d399');
+            startWorkspaceStatusRefresh();
+            loadWorkspaceStatus();
+            schedulePing();
+        }
+
+        function saveData(showToast = false, forceOverwrite = false) {
+            commitActiveCell();
+
+            const performSave = async () => {
+                setSaveStatus('● 正在保存 data.json…', '#fbbf24');
+
+                if (!appData || !appData.episodes) {
+                    console.error("appData 結構無效，拒絕寫入！");
+                    if (showToast) showMsg("Save failed: Invalid data structure.");
+                    return false;
+                }
+
+                appData.lastModified = Date.now();
+                const snapshot = JSON.parse(JSON.stringify(appData));
+
+                try {
+                    localStorage.setItem('programme_tracker_data', JSON.stringify(snapshot));
+                } catch (e) {
+                    console.warn("LocalStorage unavailable:", e);
+                }
+
+                const apiUrl = getApiUrl('/api/save');
+                if (!apiUrl) {
+                    if (showToast) showInfo("Data saved locally only. Please open the programme through the EXE to save the shared file.");
+                    return true;
+                }
+
+                try {
+                    const separator = apiUrl.includes('?') ? '&' : '?';
+                    const response = await fetch(forceOverwrite ? `${apiUrl}${separator}force=1` : apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(snapshot)
+                    });
+                    const res = await response.json().catch(() => ({}));
+                    if (response.ok && res.status === 'success') {
+                        if (Number.isInteger(res.revision)) appData.revision = res.revision;
+                        if (Number.isInteger(res.lastModified)) appData.lastModified = res.lastModified;
+                        try {
+                            localStorage.setItem('programme_tracker_data', JSON.stringify(appData));
+                        } catch (e) {
+                            console.warn("LocalStorage unavailable:", e);
+                        }
+                        setSaveStatus(`● 已保存 ${formatTimestamp(appData.lastModified)}`, '#34d399');
+                        refreshWorkspaceStatus();
+                        if (showToast) showInfo("Data saved successfully to data.json.");
+                        return true;
+                    }
+                    setSaveStatus('● 保存失敗', '#f87171');
+                    if (res.status === 'conflict') {
+                        showMsg("Save blocked: this programme has a newer version. Please reload the programme before editing again.");
+                    } else {
+                        showMsg("Save failed: " + (res.message || "Unable to write to data.json."));
+                    }
+                    return false;
+                } catch (err) {
+                    setSaveStatus('● 保存失敗', '#f87171');
+                    if (showToast) showMsg("Save failed: Unable to write to data.json.");
+                    return false;
+                }
+            };
+
+            saveQueue = saveQueue.catch(() => false).then(performSave);
+            return saveQueue;
+        }
+
+        let tempTracks = [];
+        let detailAdvancedMode = false;
+
+        function openProgrammeDetailModal(event) {
+            detailAdvancedMode = Boolean(event && event.altKey);
+            document.getElementById('detailAccessPassword').value = '';
+            document.getElementById('detailAccessModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('detailAccessPassword').focus(), 0);
+        }
+
+        function closeDetailAccessModal() {
+            document.getElementById('detailAccessModal').classList.add('hidden');
+            detailAdvancedMode = false;
+        }
+
+        function unlockProgrammeDetail() {
+            if (document.getElementById('detailAccessPassword').value !== '24071') {
+                showMsg('Incorrect Password!');
+                return;
+            }
+            document.getElementById('detailAccessModal').classList.add('hidden');
+            openProgrammeDetailEditor();
+        }
+
+        function openProgrammeDetailEditor() {
+            document.getElementById('detailProgramNo').value = appData.programNo || '';
+            document.getElementById('detailProgramName').value = appData.programName || '';
+            ensureTrackDataStructure();
+            tempTracks = JSON.parse(JSON.stringify(appData.versionTracks));
+            tempTracks.forEach(track => ensureTrackAppearance(track));
+            document.getElementById('programmeDetailBox').style.width = detailAdvancedMode ? '960px' : '';
+            document.getElementById('advancedAppearanceHelp').classList.toggle('hidden', !detailAdvancedMode);
+            document.querySelectorAll('.appearance-header').forEach(header => header.classList.toggle('hidden', !detailAdvancedMode));
+            renderTrackRows();
+            document.getElementById('programmeDetailModal').classList.remove('hidden');
+        }
+
+        function handleProgramNameInput(newVal) {
+            const trimmed = newVal.trim();
+            if (tempTracks.length > 0) {
+                tempTracks[0].name = trimmed;
+                for (let i = 1; i < tempTracks.length; i++) {
+                    tempTracks[i].name = `${trimmed}_${i}`;
+                }
+            }
+            renderTrackRows();
+        }
+
+        function updateTempTrackAppearance(index, field, value) {
+            if (!tempTracks[index]) return;
+            const appearance = ensureTrackAppearance(tempTracks[index]);
+            if (field === 'fontColor') {
+                appearance.fontColor = value === '#ffffff' ? '#ffffff' : '#000000';
+            } else if (field === 'headerColor' || field === 'dataColor') {
+                appearance[field] = normaliseHexColor(value, defaultTrackAppearance()[field]);
+            }
+        }
+
+        function renderTrackRows() {
+            const tbody = document.getElementById('tracksTableBody');
+            let html = '';
+            tempTracks.forEach((t, idx) => {
+                const displayName = t.name ? t.name : (idx === 0 ? "Standard Track" : `Custom Track ${idx}`);
+                const appearance = ensureTrackAppearance(t);
+                const advancedCells = detailAdvancedMode ? `
+                    <td><div class="track-appearance-control"><input type="color" value="${appearance.headerColor}" title="Row 1–2 colour" onchange="updateTempTrackAppearance(${idx}, 'headerColor', this.value)"></div></td>
+                    <td><div class="track-appearance-control"><input type="color" value="${appearance.dataColor}" title="Data row base colour" onchange="updateTempTrackAppearance(${idx}, 'dataColor', this.value)"></div></td>
+                    <td><div class="track-appearance-control"><select onchange="updateTempTrackAppearance(${idx}, 'fontColor', this.value)"><option value="#000000" ${appearance.fontColor === '#000000' ? 'selected' : ''}>Black</option><option value="#ffffff" ${appearance.fontColor === '#ffffff' ? 'selected' : ''}>White</option></select></div></td>` : '';
+                html += `
+                    <tr>
+                        <td><input type="text" value="${escapeHtml(displayName)}" class="form-input" style="padding: 4px;" onchange="tempTracks[${idx}].name = this.value"></td>
+                        <td><input type="number" value="${t.startEpisode}" min="1" class="form-input" style="padding: 4px;" onchange="tempTracks[${idx}].startEpisode = parseInt(this.value, 10)||1"></td>
+                        <td><input type="number" value="${t.endEpisode}" min="1" class="form-input" style="padding: 4px;" onchange="tempTracks[${idx}].endEpisode = parseInt(this.value, 10)||1"></td>
+                        ${advancedCells}
+                        <td><button onclick="removeTrackRow(${idx})" class="btn btn-danger" style="font-size: 11px; padding: 2px 6px;">🗑️</button></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function addTrackRow() {
+            const progName = document.getElementById('detailProgramName').value.trim();
+            const count = tempTracks.length;
+            const newName = progName ? `${progName}_${count}` : `Custom Track ${count}`;
+
+            let baseStart = 1;
+            let baseEnd = 20;
+            if (tempTracks.length > 0) {
+                const firstTrack = tempTracks[0];
+                baseStart = parseInt(firstTrack.startEpisode, 10) || 1;
+                baseEnd = parseInt(firstTrack.endEpisode, 10) || baseStart;
+            }
+
+            let startOffset = 1000000 * count;
+            let endOffset = 1000000 * count;
+
+            tempTracks.push({
+                "id": "track_" + Date.now(),
+                "name": newName,
+                "startEpisode": baseStart + startOffset,
+                "endEpisode": baseEnd + endOffset,
+                "appearance": defaultTrackAppearance()
+            });
+
+            renderTrackRows();
+        }
+
+        function removeTrackRow(idx) {
+            if (tempTracks.length <= 1) {
+                showMsg("At least one programme version track must be retained!");
+                return;
+            }
+            tempTracks.splice(idx, 1);
+            renderTrackRows();
+        }
+
+        function closeProgrammeDetailModal() {
+            document.getElementById('programmeDetailModal').classList.add('hidden');
+            detailAdvancedMode = false;
+        }
+
+        function saveProgrammeDetail() {
+            for (let i = 0; i < tempTracks.length; i++) {
+                let t = tempTracks[i];
+                if (t.startEpisode < 1 || t.endEpisode < t.startEpisode) {
+                    showMsg(`Episode range invalid for track [${t.name || 'Track ' + (i+1)} ]!`);
+                    return;
+                }
+            }
+
+            appData.programNo = document.getElementById('detailProgramNo').value.trim();
+            appData.programName = document.getElementById('detailProgramName').value.trim();
+            appData.versionTracks = JSON.parse(JSON.stringify(tempTracks));
+
+            ensureTrackDataStructure();
+
+            appData.versionTracks.forEach(t => {
+                let epList = getEpisodeList(t.id);
+                epList.forEach(i => {
+                    if (!appData.episodes[i]) {
+                        appData.episodes[i] = Array.from({length: 16}, () => ({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 }));
+                    }
+                });
+            });
+
+            activeTab = 'Status';
+            statusPage = 1;
+            tabOffset = 0;
+            saveViewState();
+
+            saveData(false);
+            renderTabs();
+            renderView();
+            closeProgrammeDetailModal();
+            showInfo("Programme Detail settings updated successfully!");
+        }
+
+        function changeTrackFilter(val) {
+            // 切換版本 Track 時，避免沿用不屬於新 Track 的分頁。
+            // 否則畫面會停留舊分頁（例如 15），但整體會套用新 Track 顏色，造成「頁面不換但顏色變」的錯位。
+            commitActiveCell();
+            selectedTrackFilter = val;
+            statusPage = 1;
+            tabOffset = 0;
+
+            ensureTrackDataStructure();
+            const allEps = getEpisodeList(selectedTrackFilter);
+            const displayCount = isStandardVersion(selectedTrackFilter) ? 20 : 10;
+
+            if (activeTab !== 'Status') {
+                const currentEp = parseInt(activeTab, 10);
+                const epIdx = allEps.indexOf(currentEp);
+
+                if (epIdx === -1) {
+                    // 舊分頁在新 Track 不存在：跳到新 Track 的第一個有效分頁。
+                    activeTab = allEps.length ? String(allEps[0]) : 'Status';
+                    tabOffset = 0;
+                } else {
+                    // 保留同一分頁，但要確保該分頁的 Tab 在可視範圍內。
+                    tabOffset = Math.floor(epIdx / displayCount) * displayCount;
+                }
+            }
+            saveViewState();
+            renderTabs();
+            renderView();
+        }
+
+        function switchVersion(direction) {
+            ensureTrackDataStructure();
+            let currentIndex = appData.versionTracks.findIndex(t => t.id === selectedTrackFilter);
+            if (currentIndex === -1) currentIndex = 0;
+
+            const nextIndex = currentIndex + direction;
+            if (nextIndex >= 0 && nextIndex < appData.versionTracks.length) {
+                // Up/Down changes the version and always opens that version's Status page.
+                commitActiveCell();
+                selectedTrackFilter = appData.versionTracks[nextIndex].id;
+                activeTab = 'Status';
+                statusPage = 1;
+                tabOffset = 0;
+                saveViewState();
+                renderTabs();
+                renderView();
+            }
+        }
+
+        function shiftTabsByPage(direction) {
+            let total = getEpisodeList(selectedTrackFilter).length;
+            if (total === 0) return;
+            let displayCount = isStandardVersion(selectedTrackFilter) ? 20 : 10;
+            
+            let currentPage = Math.floor(tabOffset / displayCount);
+            let maxPage = Math.max(0, Math.ceil(total / displayCount) - 1);
+            let newPage = currentPage + direction;
+            
+            if (newPage < 0) newPage = 0;
+            if (newPage > maxPage) newPage = maxPage;
+            
+            tabOffset = newPage * displayCount;
+            saveViewState();
+            renderTabs();
+        }
+
+        function renderTabs() {
+            const container = document.getElementById('tabsContainer');
+            const filterDropdown = document.getElementById('bottomTrackFilter');
+
+            ensureTrackDataStructure();
+
+            let filterHtml = '';
+            appData.versionTracks.forEach((t, idx) => {
+                const trackLabel = t.name ? t.name : (idx === 0 ? (appData.programName || "Standard Track") : `Custom Track ${idx}`);
+                filterHtml += `<option value="${t.id}" ${selectedTrackFilter === t.id ? 'selected' : ''}>🎬 ${trackLabel} (${t.startEpisode}~${t.endEpisode})</option>`;
+            });
+            filterDropdown.innerHTML = filterHtml;
+
+            let html = `
+                <div class="tab ${activeTab === 'Status' ? 'active' : ''}" onclick="switchTab('Status')">
+                    🔒 Status
+                </div>
+            `;
+
+            let allEps = getEpisodeList(selectedTrackFilter);
+            let displayCount = isStandardVersion(selectedTrackFilter) ? 20 : 10; 
+            
+            let maxOffset = Math.max(0, Math.floor((allEps.length - 1) / displayCount) * displayCount);
+            if (tabOffset > maxOffset) {
+                tabOffset = maxOffset;
+            }
+
+            let visibleEps = allEps.slice(tabOffset, tabOffset + displayCount);
+
+            visibleEps.forEach(i => {
+                html += `
+                    <div class="tab ${activeTab === String(i) ? 'active' : ''}" onclick="switchTab('${i}')">
+                        🔒 ${i}
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function switchTab(tab) {
+            commitActiveCell();
+            activeTab = String(tab);
+            saveViewState();
+            renderTabs();
+            renderView();
+        }
+
+        function toYMD(dateStr) {
+            if (!dateStr) return '';
+            if (dateStr.includes('-')) return dateStr;
+            let parts = dateStr.split('/');
+            if (parts.length === 3) {
+                let d = parts[0].padStart(2, '0');
+                let m = parts[1].padStart(2, '0');
+                let y = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+                return `${y}-${m}-${d}`;
+            }
+            return '';
+        }
+
+        function toDMY(dateStr) {
+            if (!dateStr) return '';
+            if (dateStr.includes('-')) {
+                let parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    let y = parts[0].slice(-2);
+                    let m = parts[1].padStart(2, '0');
+                    let d = parts[2].padStart(2, '0');
+                    return `${d}/${m}/${y}`;
+                }
+            }
+            return dateStr;
+        }
+
+        function parseDMY(dateStr) {
+            if (!dateStr) return null;
+            let parts = dateStr.split('/');
+            if (parts.length === 3) {
+                let d = parseInt(parts[0], 10);
+                let m = parseInt(parts[1], 10) - 1;
+                let y = parseInt(parts[2].length === 2 ? '20' + parts[2] : parts[2], 10);
+                return new Date(y, m, d);
+            }
+            return null;
+        }
+
+        function handlePaste(e) {
+            e.preventDefault();
+            let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+            document.execCommand('insertText', false, text);
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+            } else if (e.key === 'Delete' || e.key === 'Del') {
+                e.target.innerText = '';
+            }
+        }
+
+        function handleDateKey(e, ep, idx) {
+            if (e.key === 'Delete' || e.key === 'Del') {
+                e.preventDefault();
+                e.target.value = '';
+                updateCell(ep, idx, 'date', '');
+            }
+        }
+
+        function handleSelectKey(e, ep, idx, field) {
+            if (e.key === 'Delete' || e.key === 'Del') {
+                e.preventDefault();
+                e.target.value = '';
+                updateCell(ep, idx, field, '');
+            }
+        }
+
+        function handleCellFocus(ep, rowIdx, el) {
+            const records = appData.episodes[ep];
+            if (!records) return;
+
+            const currentVal = (records[rowIdx].fileNum || '').trim();
+
+            if (currentVal === '' && rowIdx > 0) {
+                let prevFileNumStr = '';
+                for (let i = rowIdx - 1; i >= 0; i--) {
+                    if (records[i] && records[i].fileNum && records[i].fileNum.trim() !== '') {
+                        prevFileNumStr = records[i].fileNum.trim();
+                        break;
+                    }
+                }
+
+                if (prevFileNumStr !== '') {
+                    const duplicateEpisode = findDfnInAnotherEpisode(prevFileNumStr, ep);
+                    if (duplicateEpisode !== null) {
+                        showMsg(`Digital File Number already belongs to Episode ${duplicateEpisode}.<br>The same number may only be used within one Episode.`);
+                        renderView();
+                        return;
+                    }
+                    el.innerText = prevFileNumStr;
+                    records[rowIdx].fileNum = prevFileNumStr;
+
+                    /* Auto set condition to 'In Use' on entering/copying DFN */
+                    records[rowIdx].condition = 'In Use';
+                    records[rowIdx].finishedAt = 0;
+                    records[rowIdx].date = getTodayDMY();
+
+                    recalculateVersions(ep);
+                    saveData(false);
+                    renderView();
+
+                    setTimeout(() => {
+                        const newCell = document.getElementById(`cell-dfn-${ep}-${rowIdx}`);
+                        if (newCell) {
+                            newCell.focus();
+                            const range = document.createRange();
+                            range.selectNodeContents(newCell);
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }, 10);
+                }
+            }
+        }
+
+        function showMsg(text) {
+            document.getElementById('msgContent').innerHTML = text;
+            document.getElementById('msgModal').classList.remove('hidden');
+        }
+
+        function closeMsg() { document.getElementById('msgModal').classList.add('hidden'); }
+        function showInfo(text) {
+            document.getElementById('infoContent').innerHTML = text;
+            document.getElementById('infoModal').classList.remove('hidden');
+        }
+        function closeInfo() { document.getElementById('infoModal').classList.add('hidden'); }
+
+        function recalculateVersions(ep) {
+            let currentVersion = 1;
+            let versionMap = {};
+            let records = appData.episodes[ep];
+            if (!records) return;
+            
+            for (let i = 0; i < records.length; i++) {
+                let fNum = records[i].fileNum.trim();
+                if (fNum !== '') {
+                    if (!versionMap[fNum]) versionMap[fNum] = currentVersion++;
+                    records[i].version = versionMap[fNum].toString();
+                } else {
+                    records[i].version = '';
+                }
+            }
+        }
+
+        function addEpisodeRow(ep, count = 1) {
+            if (!appData.episodes[ep]) appData.episodes[ep] = [];
+            for (let i = 0; i < count; i++) {
+                appData.episodes[ep].push({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 });
+            }
+            renderView();
+            saveData(false);
+        }
+
+        function updateCell(ep, rowIdx, field, value) {
+            if (!appData.episodes[ep]) appData.episodes[ep] = [];
+            while (appData.episodes[ep].length <= rowIdx) {
+                appData.episodes[ep].push({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 });
+            }
+            
+            const prevFileNumValue = appData.episodes[ep][rowIdx]['fileNum'] || '';
+
+            if (field === 'fileNum') {
+                const trimmedFileNum = value.trim();
+
+                if (trimmedFileNum === '') {
+                    appData.episodes[ep][rowIdx]['condition'] = '';
+                    appData.episodes[ep][rowIdx]['finishedAt'] = 0;
+                    appData.episodes[ep][rowIdx]['date'] = '';
+
+                } else {
+                    if (!/^\d{10}$/.test(trimmedFileNum)) {
+                        showMsg("Digital File Number must be 10 digits!");
+                        renderView();
+                        return;
+                    }
+
+                    const duplicateEpisode = findDfnInAnotherEpisode(trimmedFileNum, ep);
+                    if (duplicateEpisode !== null) {
+                        showMsg(`Digital File Number already belongs to Episode ${duplicateEpisode}.<br>The same number may only be used within one Episode.`);
+                        renderView();
+                        return;
+                    }
+
+                    let records = appData.episodes[ep];
+
+                    let prevFileNumStr = '';
+                    for (let i = rowIdx - 1; i >= 0; i--) {
+                        if (records[i] && records[i].fileNum && records[i].fileNum.trim() !== '') {
+                            prevFileNumStr = records[i].fileNum.trim();
+                            break;
+                        }
+                    }
+
+                    let nextFileNumStr = '';
+                    for (let i = rowIdx + 1; i < records.length; i++) {
+                        if (records[i] && records[i].fileNum && records[i].fileNum.trim() !== '') {
+                            nextFileNumStr = records[i].fileNum.trim();
+                            break;
+                        }
+                    }
+
+                    if (prevFileNumStr !== '' && BigInt(trimmedFileNum) < BigInt(prevFileNumStr)) {
+                        showMsg(`Digital File Number sequence error!<br>Number (${trimmedFileNum}) cannot be smaller than upper row (${prevFileNumStr}).`);
+                        renderView();
+                        return;
+                    }
+
+                    if (nextFileNumStr !== '' && BigInt(trimmedFileNum) > BigInt(nextFileNumStr)) {
+                        showMsg(`Digital File Number sequence error!<br>Number (${trimmedFileNum}) cannot be larger than lower row (${nextFileNumStr}).`);
+                        renderView();
+                        return;
+                    }
+                }
+            }
+
+            if (field === 'staff' && value.trim() !== '') {
+                if (!/^[A-Za-z0-9]{4,5}$/.test(value.trim())) {
+                    showMsg("Staff no must be 4 to 5 letters or numbers!");
+                    renderView();
+                    return;
+                }
+            }
+
+            if (field === 'date' && value.trim() !== '') {
+                let newDateObj = parseDMY(value);
+                if (newDateObj) {
+                    let records = appData.episodes[ep];
+                    let prevDateObj = null, prevDateStr = '';
+                    for (let i = rowIdx - 1; i >= 0; i--) {
+                        if (records[i] && records[i].date && records[i].date.trim() !== '') {
+                            prevDateObj = parseDMY(records[i].date);
+                            prevDateStr = records[i].date;
+                            break;
+                        }
+                    }
+                    
+                    let nextDateObj = null, nextDateStr = '';
+                    for (let i = rowIdx + 1; i < records.length; i++) {
+                        if (records[i] && records[i].date && records[i].date.trim() !== '') {
+                            nextDateObj = parseDMY(records[i].date);
+                            nextDateStr = records[i].date;
+                            break;
+                        }
+                    }
+                    
+                    if (prevDateObj && newDateObj < prevDateObj) {
+                        showMsg(`Date sequence error!<br>Update Date (${value}) cannot be earlier than previous row's date (${prevDateStr}).`);
+                        renderView();
+                        return;
+                    }
+                    
+                    if (nextDateObj && newDateObj > nextDateObj) {
+                        showMsg(`Date sequence error!<br>Update Date (${value}) cannot be later than next row's date (${nextDateStr}).`);
+                        renderView();
+                        return;
+                    }
+                }
+            }
+
+            appData.episodes[ep][rowIdx][field] = value;
+
+            if (field === 'condition') {
+                appData.episodes[ep][rowIdx].date = getTodayDMY();
+                appData.episodes[ep][rowIdx].finishedAt = Date.now();
+            }
+
+            if (field === 'status') {
+                appData.episodes[ep][rowIdx].date = getTodayDMY();
+                appData.episodes[ep][rowIdx].finishedAt = Date.now();
+            }
+            
+            /* Entering or editing a Digital File Number automatically sets File Condition to "In Use" */
+            if (field === 'fileNum') {
+                const trimmedValue = value.trim();
+                if (trimmedValue !== '') {
+                    appData.episodes[ep][rowIdx]['condition'] = 'In Use';
+                    appData.episodes[ep][rowIdx]['finishedAt'] = 0;
+                    appData.episodes[ep][rowIdx]['date'] = getTodayDMY();
+                } else {
+                    appData.episodes[ep][rowIdx]['condition'] = '';
+                    appData.episodes[ep][rowIdx]['finishedAt'] = 0;
+                    appData.episodes[ep][rowIdx]['date'] = '';
+                }
+                recalculateVersions(ep);
+            }
+
+            saveData(false);
+            renderView();
+        }
+
+        function normalizeCellValue(value) {
+            return String(value || '').trim();
+        }
+
+        function normalizeDepartmentStatus(value) {
+            const status = normalizeCellValue(value);
+            return status === 'Sync' ? 'Audio Sync' : status;
+        }
+
+        // Backward-compatible reader for older data.json files that used "Inuse".
+        // The canonical value written by the current UI remains "In Use".
+        function normalizeCondition(value) {
+            const condition = normalizeCellValue(value);
+            return condition === 'Inuse' ? 'In Use' : condition;
+        }
+
+        function isActiveDepartmentRecord(record) {
+            const status = normalizeDepartmentStatus(record && record.status);
+            return Boolean(status) && normalizeCondition(record && record.condition) !== 'Finished';
+        }
+
+        function getDfnConflictStates(records) {
+            const states = Array.isArray(records) ? Array(records.length).fill(false) : [];
+            if (!Array.isArray(records) || records.length < 2) return states;
+
+            const editingIsActive = records.some(record =>
+                isActiveDepartmentRecord(record) && normalizeDepartmentStatus(record && record.status) === 'Editing'
+            );
+            const anotherDepartmentIsActive = records.some(record =>
+                isActiveDepartmentRecord(record) && normalizeDepartmentStatus(record && record.status) !== 'Editing'
+            );
+            if (!editingIsActive || !anotherDepartmentIsActive) return states;
+
+            records.forEach((record, index) => {
+                states[index] = isActiveDepartmentRecord(record);
+            });
+            return states;
+        }
+
+        function hasDfnConflict(records) {
+            return getDfnConflictStates(records).some(Boolean);
+        }
+
+        function findDfnInAnotherEpisode(fileNumber, currentEpisode) {
+            const target = normalizeCellValue(fileNumber);
+            if (!target) return null;
+            const currentEpisodeId = String(currentEpisode);
+            for (const [episode, records] of Object.entries(appData.episodes || {})) {
+                if (String(episode) === currentEpisodeId || !Array.isArray(records)) continue;
+                if (records.some(record => normalizeCellValue(record && record.fileNum) === target)) {
+                    return String(episode);
+                }
+            }
+            return null;
+        }
+
+        function getEpisodeRowConflicts(epNum) {
+            const records = appData.episodes[epNum] || [];
+            const conflicts = Array(records.length).fill('');
+            const groups = {};
+
+            records.forEach((record, index) => {
+                const fileNumber = normalizeCellValue(record && record.fileNum);
+                if (!fileNumber) return;
+                if (!groups[fileNumber]) groups[fileNumber] = [];
+                groups[fileNumber].push(index);
+            });
+
+            Object.values(groups).forEach(indices => {
+                const groupRecords = indices.map(index => records[index] || {});
+                const states = getDfnConflictStates(groupRecords);
+                indices.forEach((index, groupIndex) => {
+                    conflicts[index] = states[groupIndex] ? 'Warning' : 'Safe';
+                });
+            });
+
+            return conflicts;
+        }
+
+        function formatFinishedStamp(value) {
+            const timestamp = Number(value || 0);
+            if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+            const date = new Date(timestamp);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `[${day}/${month} ${hours}:${minutes}]`;
+        }
+
+        function parseUpdateDate(dateStr) {
+            const s = String(dateStr || '').trim();
+            if (!s) return 0;
+            const parts = s.split('/');
+            if (parts.length !== 3) return 0;
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year += 2000;
+            return new Date(year, month, day).getTime() || 0;
+        }
+
+        function getDeptModifyTime(state) {
+            if (normalizeCondition(state && state.condition) === 'Empty') return 0;
+            return state.finishedAt || parseUpdateDate(state.updateDate) || 0;
+        }
+
+        function getComputedStatusData() {
+            const result = {};
+            const departments = ['Audio Sync', 'DI-CG', 'Editing', 'Dubbing'];
+
+            getEpisodeList(selectedTrackFilter).forEach(episode => {
+                const records = appData.episodes[episode] || [];
+                const departmentConditions = Object.fromEntries(departments.map(department => [department, { condition: 'Empty', finishedAt: 0 }]));
+
+                let latestRow = null;
+                for (let rowIndex = records.length - 1; rowIndex >= 0; rowIndex -= 1) {
+                    if (normalizeCellValue(records[rowIndex] && records[rowIndex].fileNum)) {
+                        latestRow = records[rowIndex];
+                        break;
+                    }
+                }
+
+                if (!latestRow) {
+                    result[episode] = { latestRow: null, departmentConditions, version: '' };
+                    return;
+                }
+
+                const latestFileNumber = normalizeCellValue(latestRow.fileNum);
+                records.forEach(record => {
+                    if (normalizeCellValue(record && record.fileNum) !== latestFileNumber) return;
+                    const department = normalizeDepartmentStatus(record && record.status);
+                    if (!departments.includes(department)) return;
+                    const condition = normalizeCondition(record && record.condition);
+                    departmentConditions[department] = {
+                        // 空白是獨立狀態；只有輸入 Digital File Number 時，updateCell 才會自動寫入 In Use。
+                        // 以 Empty 作為內部空白標記，避免空白被誤算成最後更新的部門。
+                        condition: condition === '' ? 'Empty' : condition,
+                        finishedAt: Number(record && record.finishedAt) || 0,
+                        lastUser: normalizeCellValue(record && record.staff),
+                        updateDate: record && record.date,
+                    };
+                });
+
+                const latestDfnRecords = records.filter(record =>
+                    normalizeCellValue(record && record.fileNum) === latestFileNumber
+                );
+                const conflict = hasDfnConflict(latestDfnRecords) ? 'Warning' : 'Safe';
+                result[episode] = { latestRow, departmentConditions, version: latestRow.version || '', conflict };
+            });
+            return result;
+        }
+
+        function setStatusPage(nextPage) {
+            const totalPages = getTotalStatusPages();
+            statusPage = Math.max(1, Math.min(totalPages, Number.parseInt(nextPage, 10) || 1));
+            saveViewState();
+            renderView();
+        }
+
+        function changeStatusPage(delta) {
+            setStatusPage(statusPage + delta);
+        }
+
+        function navigateStatusPage(action) {
+            const totalPages = getTotalStatusPages();
+            if (action === 'first') setStatusPage(1);
+            else if (action === 'previous') setStatusPage(statusPage - 1);
+            else if (action === 'next') setStatusPage(statusPage + 1);
+            else if (action === 'last') setStatusPage(totalPages);
+        }
+
+        function getKeyboardShortcutsMarkup() {
+            return `
+                <span class="status-shortcuts" aria-label="Keyboard shortcuts">
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></kbd>Up arrow = Previous Version</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></kbd>Down arrow = Next Version</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></kbd>Left arrow = Previous Episode Page</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></kbd>Right arrow = Next Episode Page</span>
+                </span>`;
+        }
+
+        function getTableNavigationMarkup(includeStatusPager = false) {
+            const statusPager = includeStatusPager ? `
+                <span class="table-status-pager" aria-label="Status page navigation">
+                    <button class="btn btn-secondary" onclick="navigateStatusPage('first')" title="First page">&lt;&lt;</button>
+                    <button class="btn btn-secondary" onclick="navigateStatusPage('previous')" title="Previous page">&lt;</button>
+                    <span>Page <b>${statusPage}</b> / <b>${getTotalStatusPages()}</b></span>
+                    <button class="btn btn-secondary" onclick="navigateStatusPage('next')" title="Next page">&gt;</button>
+                    <button class="btn btn-secondary" onclick="navigateStatusPage('last')" title="Last page">&gt;&gt;</button>
+                </span>` : '';
+            return `<div class="table-navigation-controls">${statusPager}<span class="table-navigation-shortcuts">${getKeyboardShortcutsMarkup()}</span></div>`;
+        }
+
+        function renderStatus() {
+            const computedData = getComputedStatusData();
+            const filteredEpisodes = getEpisodeList(selectedTrackFilter);
+            const totalPages = getTotalStatusPages();
+
+            if (statusPage > totalPages) statusPage = totalPages;
+            if (statusPage < 1) statusPage = 1;
+
+            const startIndex = (statusPage - 1) * STATUS_PAGE_SIZE;
+            const pagedEpisodes = filteredEpisodes.slice(startIndex, startIndex + STATUS_PAGE_SIZE);
+
+            let html = `
+                <table class="excel-table track-themed" style="${getTrackTableStyle(getTrackTheme(selectedTrackFilter))}">
+                    <colgroup>
+                        <col style="width: 17px;"><col style="width: 65px;"><col style="width: 54px;"><col style="width: 108px;">
+                        <col style="width: 80px;"><col style="width: 80px;"><col style="width: 170px;">
+                        <col style="width: 170px;"><col style="width: 170px;"><col style="width: 170px;"><col style="width: 80px;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="col-header"></th><th class="col-header">A</th><th class="col-header">B</th><th class="col-header">C</th>
+                            <th class="col-header">D</th><th class="col-header">E</th><th class="col-header">F</th>
+                            <th class="col-header">G</th><th class="col-header">H</th><th class="col-header">I</th><th class="col-header">J</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="height: 30px;">
+                            <td class="row-header track-header-cell"></td>
+                            <td colspan="3" class="bg-header" style="text-align: left; padding-left: 12px;">Programme No: <span class="programme-detail-value">${appData.programNo || ''}</span></td>
+                            <td colspan="3" class="bg-header" style="text-align: left; padding-left: 12px;">Programme Name: <span class="programme-detail-value">${appData.programName || ''}</span></td>
+                            <td colspan="4" class="bg-header table-navigation-cell">${getTableNavigationMarkup(true)}</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header track-header-cell"></td><td class="bg-header">Episode</td><td class="bg-header">Version</td>
+                            <td class="bg-header">${appData.headers.b}</td><td class="bg-header">${appData.headers.c}</td>
+                            <td class="bg-header">${appData.headers.d}</td><td class="bg-header">Audio Sync</td>
+                            <td class="bg-header">DI-CG</td><td class="bg-header">Editing</td>
+                            <td class="bg-header">Dubbing</td><td class="bg-header">Conflict</td>
+                        </tr>
+            `;
+
+            pagedEpisodes.forEach((epIndex, idx) => {
+                const r = idx + 3;
+                const rowClass = (r % 2 !== 0) ? 'row-light' : 'row-dark';
+                const cellData = computedData[epIndex] || { latestRow: null, departmentConditions: { 'Audio Sync': { condition: 'Empty', finishedAt: 0 }, 'DI-CG': { condition: 'Empty', finishedAt: 0 }, Editing: { condition: 'Empty', finishedAt: 0 }, Dubbing: { condition: 'Empty', finishedAt: 0 } }, conflict: '' };
+                const latestRow = cellData.latestRow || { fileNum: '', staff: '', date: '' };
+                const depts = cellData.departmentConditions;
+
+                const getDeptStyle = department => {
+                    const rawState = depts[department] || { condition: 'Empty', finishedAt: 0 };
+                    const state = { ...rawState, condition: normalizeCondition(rawState.condition) };
+                    let maxModifyTime = 0;
+                    let lastDept = null;
+                    let hasActiveDept = false;
+                    for (const dept of ['Audio Sync', 'DI-CG', 'Editing', 'Dubbing']) {
+                        const s = depts[dept] || { condition: 'Empty', finishedAt: 0 };
+                        if (s.condition !== 'Empty') hasActiveDept = true;
+                        const modTime = getDeptModifyTime(s);
+                        if (modTime > maxModifyTime) {
+                            maxModifyTime = modTime;
+                            lastDept = dept;
+                        }
+                    }
+                    if (!lastDept && hasActiveDept) {
+                        for (const dept of ['Audio Sync', 'DI-CG', 'Editing', 'Dubbing']) {
+                            if ((depts[dept] || { condition: 'Empty' }).condition !== 'Empty') { lastDept = dept; break; }
+                        }
+                    }
+                    let deptStyle = '';
+                    if (state.condition === 'In Use') {
+                        deptStyle = 'background-color: var(--status-inuse); color: #000000; font-weight: bold;';
+                    } else if (state.condition === 'Finished') {
+                        deptStyle = 'background-color: var(--status-finished); color: #ffffff; font-weight: bold;';
+                    } else if (state.condition === 'Waiting') {
+                        deptStyle = 'background-color: var(--status-waiting); color: #1f2937; font-weight: bold;';
+                    }
+                    if (department === lastDept && state.condition !== 'Empty') {
+                        deptStyle += ' box-shadow: inset 0 0 0 2px #93c5fd;';
+                    }
+                    return deptStyle;
+                };
+                const getDeptText = department => {
+                    const rawState = depts[department] || { condition: 'Empty', finishedAt: 0 };
+                    const state = { ...rawState, condition: normalizeCondition(rawState.condition) };
+                    let maxModifyTime = 0;
+                    let lastDept = null;
+                    let hasActiveDept = false;
+                    for (const dept of ['Audio Sync', 'DI-CG', 'Editing', 'Dubbing']) {
+                        const s = depts[dept] || { condition: 'Empty', finishedAt: 0 };
+                        if (s.condition !== 'Empty') hasActiveDept = true;
+                        const modTime = getDeptModifyTime(s);
+                        if (modTime > maxModifyTime) {
+                            maxModifyTime = modTime;
+                            lastDept = dept;
+                        }
+                    }
+                    if (!lastDept && hasActiveDept) {
+                        for (const dept of ['Audio Sync', 'DI-CG', 'Editing', 'Dubbing']) {
+                            if ((depts[dept] || { condition: 'Empty' }).condition !== 'Empty') { lastDept = dept; break; }
+                        }
+                    }
+                    if (state.condition === 'Empty' || state.condition === '') return '';
+                    if (state.condition !== 'Finished') {
+                        const lastUpdateLabel = lastDept === department
+                            ? '&nbsp;&nbsp;<span class="finished-stamp">[Last Update]</span>'
+                            : '';
+                        return `${escapeHtml(state.condition === 'Waiting' ? 'Ready' : state.condition)}${lastUpdateLabel}`;
+                    }
+                    const stamp = formatFinishedStamp(state.finishedAt);
+                    const lastUpdateLabel = lastDept === department && maxModifyTime > 0
+                        ? '&nbsp;&nbsp;<span class="finished-stamp">[Last Updated]</span>'
+                        : '';
+                    return stamp ? `Finished&nbsp;&nbsp;<span class="finished-stamp">${stamp}</span>${lastUpdateLabel}` : `Finished${lastUpdateLabel}`;
+                };
+                const conflictBg = latestRow.fileNum ? (cellData.conflict === 'Warning'
+                    ? 'background-color: var(--warn-color); color: white; font-weight: bold;'
+                    : 'background-color: var(--safe-color); color: black; font-weight: bold;') : '';
+
+                html += `
+                    <tr class="status-data-row">
+                        <td class="row-header">${[5,10,15,20,25].includes(filteredEpisodes.indexOf(epIndex) + 1) ? '--' : ''}</td>
+                        <td class="${rowClass}" style="font-weight: bold; cursor: pointer;" ondblclick="switchTab('${epIndex}')" title="Double-click to open Episode ${epIndex}">${epIndex}</td>
+                        <td class="${rowClass}" style="font-weight: bold;">${cellData.version || ""}</td>
+                        <td class="${rowClass}">${latestRow.fileNum}</td>
+                        <td class="${rowClass}">${latestRow.staff}</td>
+                        <td class="${rowClass}">${latestRow.date}</td>
+                        <td class="${rowClass}" style="${getDeptStyle('Audio Sync')}">${getDeptText('Audio Sync')}</td>
+                        <td class="${rowClass}" style="${getDeptStyle('DI-CG')}">${getDeptText('DI-CG')}</td>
+                        <td class="${rowClass}" style="${getDeptStyle('Editing')}">${getDeptText('Editing')}</td>
+                        <td class="${rowClass}" style="${getDeptStyle('Dubbing')}">${getDeptText('Dubbing')}</td>
+                        <td class="${rowClass}" style="${conflictBg}">${latestRow.fileNum ? cellData.conflict : ''}</td>
+                    </tr>
+                `;
+            });
+            return html + `</tbody></table>`;
+        }
+
+        function renderStatusPager() {
+            const dock = document.getElementById('statusPagerDock');
+            if (!dock) return;
+            const totalPages = getTotalStatusPages();
+            dock.innerHTML = `
+                <button class="btn btn-secondary" onclick="navigateStatusPage('first')" title="First page">&lt;&lt;</button>
+                <button class="btn btn-secondary" onclick="navigateStatusPage('previous')" title="Previous page">&lt;</button>
+                <span>Page <b>${statusPage}</b> / <b>${totalPages}</b></span>
+                <button class="btn btn-secondary" onclick="navigateStatusPage('next')" title="Next page">&gt;</button>
+                <button class="btn btn-secondary" onclick="navigateStatusPage('last')" title="Last page">&gt;&gt;</button>`;
+            dock.classList.remove('hidden');
+        }
+
+        function renderKeyboardShortcuts() {
+            const dock = document.getElementById('shortcutDock');
+            if (!dock) return;
+            dock.innerHTML = `
+                <span class="status-shortcuts" aria-label="Keyboard shortcuts">
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></kbd>Up arrow = Previous Version</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></kbd>Down arrow = Next Version</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></kbd>Left arrow = Previous Episode Page</span>
+                    <span class="status-shortcut-item"><kbd class="status-shortcut-key"><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></kbd>Right arrow = Next Episode Page</span>
+                </span>`;
+        }
+
+        function renderSheet(epNum) {
+            let records = appData.episodes[epNum] || [];
+            while (records.length < 16) records.push({ version: '', fileNum: '', staff: '', date: '', status: '', condition: '', finishedAt: 0 });
+
+            const conflictTracker = getEpisodeRowConflicts(epNum);
+
+            let html = `
+                <table class="excel-table track-themed" style="${getTrackTableStyle(getTrackTheme(selectedTrackFilter))}">
+                    <colgroup>
+                        <col style="width: 17px;"><col style="width: 54px;">
+                        <col style="width: 108px;"><col style="width: 80px;"><col style="width: 80px;">
+                        <col style="width: 270px;"><col style="width: 270px;"><col style="width: 285px;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="col-header"></th><th class="col-header">A</th><th class="col-header">B</th>
+                            <th class="col-header">C</th><th class="col-header">D</th><th class="col-header">E</th>
+                            <th class="col-header">F</th><th class="col-header">G</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="height: 30px;">
+                            <td class="row-header track-header-cell"></td>
+                            <td colspan="5" class="bg-header" style="text-align: left; padding-left: 12px;">Episode ${epNum}&nbsp;&nbsp;|&nbsp;&nbsp;Programme No: <span class="programme-detail-value">${appData.programNo || ''}</span>&nbsp;&nbsp;|&nbsp;&nbsp;Programme Name: <span class="programme-detail-value">${appData.programName || ''}</span></td>
+                            <td colspan="2" class="bg-header table-navigation-cell">${getTableNavigationMarkup(false)}</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header track-header-cell"></td>
+                            <td class="bg-header">Version</td>
+                            <td class="bg-header">${appData.headers.b}</td>
+                            <td class="bg-header">${appData.headers.c}</td>
+                            <td class="bg-header">${appData.headers.d}</td>
+                            <td class="bg-header">${appData.headers.e}</td>
+                            <td class="bg-header">File Condition</td><td class="bg-header">Conflict</td>
+                        </tr>
+            `;
+
+            records.forEach((rec, idx) => {
+                const r = idx + 3;
+                const rowClass = (r % 2 !== 0) ? 'row-light' : 'row-dark';
+                const condition = normalizeCondition(rec.condition);
+                let condStyle = condition === 'In Use'
+                    ? `background-color: var(--cond-inuse); color: #000000; font-weight: bold;`
+                    : condition === 'Finished'
+                        ? `background-color: var(--cond-finished); color: #ffffff; font-weight: bold;`
+                        : condition === 'Waiting'
+                            ? `background-color: var(--cond-waiting); color: #1f2937; font-weight: bold;`
+                            : '';
+
+                let dateVal = rec.date ? toYMD(rec.date) : '';
+                let dateInput = `<input type="${dateVal ? 'date' : 'text'}" class="cell-date" value="${dateVal}" onfocus="this.type='date'" onblur="if(!this.value){this.type='text'}; updateCell(${epNum}, ${idx}, 'date', toDMY(this.value))" onchange="updateCell(${epNum}, ${idx}, 'date', toDMY(this.value))" onkeydown="handleDateKey(event, ${epNum}, ${idx})">`;
+
+                let statusDrop = `<select class="cell-dropdown" onchange="updateCell(${epNum}, ${idx}, 'status', this.value)" onkeydown="handleSelectKey(event, ${epNum}, ${idx}, 'status')">`;
+                ['', 'Audio Sync', 'DI-CG', 'Editing', 'Dubbing'].forEach(opt => {
+                    statusDrop += `<option value="${opt}" ${rec.status === opt ? 'selected' : ''}>${opt}</option>`;
+                });
+                statusDrop += `</select>`;
+
+                const conditionSelectColor = condition === 'Finished'
+                    ? '#ffffff'
+                    : condition === 'Waiting'
+                        ? '#1f2937'
+                        : rec.condition === 'In Use'
+                            ? '#000000'
+                            : 'inherit';
+                let condDrop = `<select class="cell-dropdown" style="color: ${conditionSelectColor};" onchange="updateCell(${epNum}, ${idx}, 'condition', this.value)" onkeydown="handleSelectKey(event, ${epNum}, ${idx}, 'condition')">`;
+
+                ['', 'In Use', 'Finished', 'Waiting'].forEach(opt => {
+                    condDrop += `<option value="${opt}" ${condition === opt ? 'selected' : ''}>${opt === 'Waiting' ? 'Ready' : opt}</option>`;
+                });
+                condDrop += `</select>`;
+
+                let conflictText = conflictTracker[idx] || '';
+                let conflictBg = conflictText === 'Warning' ? `background-color: var(--warn-color); color: white; font-weight: bold;` : conflictText === 'Safe' ? `background-color: var(--safe-color); color: black; font-weight: bold;` : '';
+
+                html += `
+                    <tr>
+                        <td class="row-header">${(idx + 1) % 5 === 0 ? '--' : ''}</td>
+                        <td class="${rowClass}" style="cursor: default;">${rec.version}</td>
+                        <td id="cell-dfn-${epNum}-${idx}" class="${rowClass}" contenteditable="true" onfocus="handleCellFocus(${epNum}, ${idx}, this)" onblur="updateCell(${epNum}, ${idx}, 'fileNum', this.innerText)" onpaste="handlePaste(event)" onkeydown="handleKey(event)">${rec.fileNum}</td>
+                        <td class="${rowClass}" contenteditable="true" onblur="updateCell(${epNum}, ${idx}, 'staff', this.innerText)" onpaste="handlePaste(event)" onkeydown="handleKey(event)">${rec.staff}</td>
+                        <td class="${rowClass}">${dateInput}</td>
+                        <td class="${rowClass}">${statusDrop}</td>
+                        <td class="${rowClass}" style="${condStyle}">${condDrop}</td>
+                        <td class="${rowClass}" style="${conflictBg}">${conflictText}</td>
+                    </tr>
+                `;
+            });
+
+            return html + `
+                    <tr>
+                        <td colspan="8" style="${getThemeRowStyle('row-light', getTrackTheme(selectedTrackFilter))} text-align: left; padding: 6px 12px;">
+                            <button onclick="addEpisodeRow(${epNum}, 1)" class="btn-glass" style="padding: 5px 14px; font-size: 12px;">
+                                ➕ Add 1 Row
+                            </button>
+                            <button onclick="addEpisodeRow(${epNum}, 5)" class="btn-glass" style="padding: 5px 14px; font-size: 12px; margin-left: 8px;">
+                                ⏬ Add 5 Rows
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            `;
+        }
+
+        function renderView() {
+            const container = document.getElementById('mainGrid');
+            if (activeTab === 'Status') {
+                container.innerHTML = renderStatus();
+            } else {
+                container.innerHTML = renderSheet(parseInt(activeTab, 10));
+            }
+        }
+
+        window.addEventListener('keydown', function(e) {
+            const shortcutKey = String(e.key || '').toLowerCase();
+            if (e.ctrlKey && !e.altKey && !e.metaKey && shortcutKey === 's') {
+                e.preventDefault();
+                commitActiveCell();
+                saveData(true);
+                return;
+            }
+            if (e.ctrlKey && !e.altKey && !e.metaKey && shortcutKey === 'q') {
+                e.preventDefault();
+                exitApplication();
+                return;
+            }
+
+            const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            const isEditing = document.activeElement && document.activeElement.isContentEditable;
+            if (tag === 'input' || tag === 'select' || tag === 'textarea' || isEditing) {
+                return;
+            }
+
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                switchVersion(-1);
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                switchVersion(1);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                shiftTabsByPage(-1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                shiftTabsByPage(1);
+            }
+        });
+
+        window.onload = init;
+
+        async function schedulePing() {
+            const pingUrl = getApiUrl('/ping');
+            if (pingUrl) {
+                try {
+                    await fetch(pingUrl);
+                } catch (e) {
+                } finally {
+                    setTimeout(schedulePing, 5000);
+                }
+            }
+        }
+
+        async function exitApplication() {
+            commitActiveCell();
+            saveViewState(false);
+            const saved = await saveData(true);
+            if (!saved && !window.confirm("The latest data could not be saved. Exit anyway?")) return;
+            const closeUrl = getApiUrl('/closeall');
+            if (closeUrl) {
+                fetch(closeUrl).finally(() => { window.close(); });
+            } else {
+                window.close();
+            }
+        }
+
+        document.getElementById('exitBtn').onclick = exitApplication;
+
+        window.addEventListener('beforeunload', function() {
+            commitActiveCell();
+            saveViewState(false);
+            const saveUrl = getApiUrl('/api/save');
+            if (saveUrl && navigator.sendBeacon && appData && appData.episodes) {
+                try {
+                    const snapshot = JSON.parse(JSON.stringify(appData));
+                    snapshot.lastModified = Date.now();
+                    navigator.sendBeacon(saveUrl, new Blob([JSON.stringify(snapshot)], { type: 'application/json' }));
+                } catch (error) {
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->
