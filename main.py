@@ -20,10 +20,10 @@ from flask import Flask, jsonify, request, send_file
 # tkinter 在 PyInstaller 打包後有可能缺席；缺少時退回主控台輸入，
 # 避免整個程式因為一個對話框而直接結束。
 try:
-    from tkinter import Button, Entry, Frame, Label, StringVar, TclError, Tk, messagebox
+    from tkinter import Button, Entry, Frame, Label, PhotoImage, StringVar, TclError, Tk, messagebox
     TK_AVAILABLE = True
 except ImportError:  # pragma: no cover - 取決於打包環境
-    Button = Entry = Frame = Label = StringVar = Tk = messagebox = None
+    Button = Entry = Frame = Label = PhotoImage = StringVar = Tk = messagebox = None
     TclError = Exception
     TK_AVAILABLE = False
 
@@ -556,6 +556,141 @@ def popup_msg(title, message, err=False):
     root.destroy()
 
 
+# ===================== Tk dialog theming =====================
+# 色碼取自 index.html 的 CSS 變數，讓 tkinter 視窗與程式主畫面一致。
+THEME_SURFACE = "#132138"           # .modal-box
+THEME_SURFACE_DEEP = "#0f1c30"      # .form-input / --row-dark
+THEME_BORDER = "#2c3e5f"            # --border-color
+THEME_FOCUS = "#3b82f6"
+THEME_TEXT_BRIGHT = "#eef2f9"
+THEME_TEXT = "#dbe4f0"
+THEME_TEXT_MUTED = "#93a5c4"
+THEME_TEXT_ON_ACCENT = "#ffffff"
+THEME_ACCENT = "#60a5fa"            # --status-last-user
+THEME_ERROR = "#f0473f"             # --warn-color
+THEME_BTN_BLUE = "#2563eb"          # .btn-primary
+THEME_BTN_BLUE_HOVER = "#1d4ed8"
+THEME_BTN_GRAY = "#1b2a45"          # .btn-secondary
+THEME_BTN_GRAY_HOVER = "#24365a"
+THEME_BTN_GRAY_BORDER = "#31456b"
+THEME_BTN_GRAY_TEXT = "#c9d6ea"
+
+
+def build_app_icon():
+    """建立與程式 favicon 同風格的小圖示（Tk PhotoImage 不支援 alpha，故用方塊底）。"""
+    size = 32
+    try:
+        icon = PhotoImage(width=size, height=size)
+        icon.put(THEME_BORDER, to=(0, 0, size, size))
+        icon.put(THEME_SURFACE_DEEP, to=(1, 1, size - 1, size - 1))
+        icon.put(THEME_TEXT, to=(10, 5, 22, 27))          # 文件主體
+        icon.put(THEME_SURFACE_DEEP, to=(22, 5, 25, 8))   # 右上摺角
+        icon.put(THEME_SURFACE_DEEP, to=(13, 14, 21, 16))
+        icon.put(THEME_SURFACE_DEEP, to=(13, 19, 19, 21))
+        return icon
+    except Exception:
+        return None
+
+
+def apply_window_chrome(root, title):
+    """套用與主畫面一致的深色底與標題列圖示。"""
+    root.title(title)
+    root.configure(bg=THEME_SURFACE)
+    root.attributes("-topmost", True)
+    icon = build_app_icon()
+    if icon is not None:
+        try:
+            root.iconphoto(True, icon)
+        except Exception:
+            pass
+
+
+def center_window(root, height_divisor=3):
+    root.update_idletasks()
+    x = max(0, (root.winfo_screenwidth() - root.winfo_reqwidth()) // 2)
+    y = max(0, (root.winfo_screenheight() - root.winfo_reqheight()) // height_divisor)
+    root.geometry(f"+{x}+{y}")
+    root.deiconify()
+
+
+def make_button(parent, text, command, base, hover, foreground, border=None):
+    """建立扁平化深色按鈕；Tk 9 不接受兩元素間距，故只用單一數值。"""
+    options = {
+        "text": text,
+        "command": command,
+        "bg": base,
+        "fg": foreground,
+        "activebackground": hover,
+        "activeforeground": foreground,
+        "relief": "flat",
+        "bd": 0,
+        "font": ("Segoe UI", 10, "bold"),
+        "padx": 18,
+        "pady": 8,
+        "highlightthickness": 1 if border else 0,
+    }
+    if border:
+        options["highlightbackground"] = border
+        options["highlightcolor"] = border
+    return Button(parent, **options)
+
+
+def show_themed_dialog(title, lines, accent=THEME_ERROR):
+    """以程式主題樣式顯示訊息，取代系統 messagebox；沒有 tkinter 時退回主控台。"""
+    if not TK_AVAILABLE:
+        print(f"[{title}]")
+        for line in lines:
+            print(line)
+        return
+
+    root = Tk()
+    root.withdraw()
+    root.resizable(False, False)
+    apply_window_chrome(root, title)
+
+    frame = Frame(root, bg=THEME_SURFACE, padx=26, pady=22)
+    frame.pack()
+    frame.columnconfigure(0, weight=1)
+
+    Label(
+        frame, text=title, bg=THEME_SURFACE, fg=accent,
+        font=("Segoe UI", 15, "bold"), justify="left"
+    ).grid(row=0, column=0, sticky="w")
+
+    for index, line in enumerate(lines):
+        Label(
+            frame, text=line, bg=THEME_SURFACE, fg=THEME_TEXT,
+            font=("Segoe UI", 10), justify="left"
+        ).grid(row=index + 1, column=0, sticky="w", pady=2)
+
+    make_button(
+        frame, "Close", root.destroy,
+        THEME_BTN_BLUE, THEME_BTN_BLUE_HOVER, THEME_TEXT_ON_ACCENT,
+    ).grid(row=len(lines) + 1, column=0, sticky="e", pady=18)
+
+    root.bind("<Return>", lambda event: root.destroy())
+    root.bind("<Escape>", lambda event: root.destroy())
+    center_window(root)
+    root.grab_set()
+    root.mainloop()
+
+
+def console_prompt_machine_no():
+    """打包後若無 tkinter，改用主控台輸入，避免整個程式無法啟動。"""
+    print("=" * 58)
+    print("Machine No is required to open this programme.")
+    print("=" * 58)
+    try:
+        entered = input("Machine No: ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+    machine_no = normalize_machine_no(entered)
+    if machine_no is None:
+        print("Invalid Machine No.")
+    return machine_no
+
+
 def normalize_machine_no(value):
     """回傳整理後的 Machine No；若無效則回傳 None。"""
     machine_no = str(value or "").strip()
@@ -569,45 +704,54 @@ def normalize_machine_no(value):
 
 
 def prompt_machine_no():
-    """啟動瀏覽器前要求輸入 Machine No，作為多人共用同一資料夾時的身分識別。
-    回傳字串；使用者取消或關閉視窗時回傳 None。
+    """Open the login dialog so the operator identifies this machine before use.
+    Returns the Machine No, or None when cancelled / window closed.
 
-    注意：版面一律使用 grid 且 padx/pady 只接受單一數值。
-    Tcl/Tk 9.0（Python 3.14 內建）無法處理兩元素的間距值，
-    傳入 tuple 或 list 都會丟出 TclError: expected screen distance。
+    Layout note: always grid, and padx/pady must be single values. The Tcl/Tk 9.0
+    shipped with Python 3.14 rejects two-element screen distances (both tuple and
+    list) with TclError: expected screen distance.
     """
+    if not TK_AVAILABLE:
+        return console_prompt_machine_no()
+
     result = {"machineNo": None}
     root = Tk()
     root.withdraw()
-    root.title("Machine No")
-    root.attributes("-topmost", True)
     root.resizable(False, False)
+    apply_window_chrome(root, "Machine No")
 
-    frame = Frame(root, padx=20, pady=18)
+    frame = Frame(root, bg=THEME_SURFACE, padx=26, pady=22)
     frame.pack()
     frame.columnconfigure(0, weight=1)
 
-    Label(frame, text="Machine No", font=("Segoe UI", 13, "bold")).grid(
-        row=0, column=0, sticky="w"
-    )
+    Label(
+        frame, text="Machine No", bg=THEME_SURFACE, fg=THEME_TEXT_BRIGHT,
+        font=("Segoe UI", 15, "bold"),
+    ).grid(row=0, column=0, sticky="w")
     Label(
         frame,
-        text="請輸入本機的 Machine No 後才能進入程式。",
-        font=("Segoe UI", 10),
-        fg="#4b5563",
-    ).grid(row=1, column=0, sticky="w", pady=4)
+        text="Enter this machine's Machine No to open the programme.",
+        bg=THEME_SURFACE, fg=THEME_TEXT_MUTED, font=("Segoe UI", 10),
+    ).grid(row=1, column=0, sticky="w", pady=6)
 
     variable = StringVar()
-    entry = Entry(frame, textvariable=variable, font=("Segoe UI", 13), width=26)
-    entry.grid(row=2, column=0, sticky="ew", pady=4)
+    entry = Entry(
+        frame, textvariable=variable, font=("Segoe UI", 13),
+        bg=THEME_SURFACE_DEEP, fg=THEME_TEXT, insertbackground=THEME_TEXT,
+        relief="flat", bd=0, highlightthickness=2,
+        highlightbackground=THEME_BORDER, highlightcolor=THEME_FOCUS,
+    )
+    entry.grid(row=2, column=0, sticky="ew", pady=8)
 
-    error = Label(frame, text="", font=("Segoe UI", 10), fg="#dc2626")
-    error.grid(row=3, column=0, sticky="w", pady=4)
+    error = Label(frame, text="", bg=THEME_SURFACE, fg=THEME_ERROR, font=("Segoe UI", 10))
+    error.grid(row=3, column=0, sticky="w")
 
     def submit(event=None):
         machine_no = normalize_machine_no(variable.get())
         if machine_no is None:
-            error.config(text=f"請輸入 1–{MACHINE_NO_MAX_LENGTH} 個字元，且不可含控制字元。")
+            error.config(
+                text=f"Machine No is required. Use 1-{MACHINE_NO_MAX_LENGTH} characters, no control characters."
+            )
             return
         result["machineNo"] = machine_no
         root.destroy()
@@ -616,21 +760,22 @@ def prompt_machine_no():
         result["machineNo"] = None
         root.destroy()
 
-    buttons = Frame(frame)
-    buttons.grid(row=4, column=0, sticky="e", pady=12)
-    Button(buttons, text="取消", command=cancel, width=10).pack(side="right", padx=6)
-    Button(buttons, text="進入程式", command=submit, width=12).pack(side="right")
+    buttons = Frame(frame, bg=THEME_SURFACE)
+    buttons.grid(row=4, column=0, sticky="e", pady=18)
+    make_button(
+        buttons, "Cancel", cancel,
+        THEME_BTN_GRAY, THEME_BTN_GRAY_HOVER, THEME_BTN_GRAY_TEXT, border=THEME_BTN_GRAY_BORDER,
+    ).pack(side="right", padx=8)
+    make_button(
+        buttons, "Enter", submit,
+        THEME_BTN_BLUE, THEME_BTN_BLUE_HOVER, THEME_TEXT_ON_ACCENT,
+    ).pack(side="right")
 
     entry.bind("<Return>", submit)
     entry.bind("<Escape>", cancel)
     root.protocol("WM_DELETE_WINDOW", cancel)
 
-    root.update_idletasks()
-    screen_width, screen_height = root.winfo_screenwidth(), root.winfo_screenheight()
-    x = max(0, (screen_width - root.winfo_reqwidth()) // 2)
-    y = max(0, (screen_height - root.winfo_reqheight()) // 3)
-    root.geometry(f"+{x}+{y}")
-    root.deiconify()
+    center_window(root)
     entry.focus_set()
     root.grab_set()
     root.mainloop()
@@ -653,22 +798,36 @@ def launch_browser_when_ready(port, timeout_seconds=20):
     print("[Browser Launch] server did not start listening in time; skipping browser launch")
 
 
+def format_session_time(timestamp_ms):
+    """把登入時間顯示成與程式主畫面一致的簡短格式。"""
+    if not timestamp_ms:
+        return ""
+    try:
+        moment = datetime.datetime.fromtimestamp(int(timestamp_ms) / 1000).astimezone()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return ""
+    return moment.strftime("%Y-%m-%d %H:%M")
+
+
 def show_lock_conflict_popup():
-    """鎖已被其他機器取得時，通報目前是誰在使用。"""
+    """Report who currently holds the lock, so the second user knows whom to contact."""
     session = read_session()
-    lines = []
     if session:
-        lines.append(f"Machine No {session['machineNo']} 正在使用本程式")
-        if session["loginAt"] > 0:
-            lines.append(f"登入時間:{iso_timestamp(session['loginAt'])}")
+        body = [f"Machine No {session['machineNo']} is using this programme."]
+        logged_in_at = format_session_time(session.get("loginAt"))
+        if logged_in_at:
+            body.append(f"Logged in at {logged_in_at}")
     else:
-        lines.append("本程式已被另一台機器佔用")
-    lines.append("")
-    lines.append("請聯絡該機台的使用者,確認是忘記登出,")
-    lines.append("還是仍在輸入資料中。")
-    lines.append("")
-    lines.append("若對方已離開,請對方重新執行本程式即可釋放。")
-    popup_msg("Machine No 正在使用中", "\n".join(lines), err=True)
+        body = ["This programme is already open on another machine."]
+
+    body += [
+        "",
+        "Please contact that machine to check whether they forgot to log out,",
+        "or are still entering data.",
+        "",
+        "If they have left, ask them to run this programme again to release the lock.",
+    ]
+    show_themed_dialog("Programme In Use", body)
 
 
 # ===================== API routes =====================
