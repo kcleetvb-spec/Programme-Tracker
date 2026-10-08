@@ -969,8 +969,11 @@
                 const suffixEl = document.getElementById('workspaceSuffix');
                 if (suffixEl) {
                     const backupTime = result.nextBackupAt ? formatTimestamp(result.nextBackupAt) : '—';
+                    const parts = [`Next backup: ${backupTime}`];
+                    if (result.machineNo) parts.push(`Machine No: ${result.machineNo}`);
+                    parts.push('Designed By kc13793');
                     // Keep the backup timestamp text compact; no redundant trailing gap.
-                    suffixEl.textContent = `Next backup: ${backupTime}| Designed By kc13793`;
+                    suffixEl.textContent = parts.join(' | ');
                 }
             } catch (error) {
                 setSaveStatus('● 無法取得 data.json 狀態', '#f87171');
